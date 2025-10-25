@@ -1,157 +1,518 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Chat Indicadores</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; background:#0b1020; color:#eaeef7; }
-    .container { max-width: 840px; margin: 0 auto; padding: 1rem; }
-    .chat { background:#121a33; border-radius:12px; padding:16px; min-height:60vh; }
-    .msg { padding:10px 12px; border-radius:10px; margin:8px 0; white-space:pre-wrap; }
-    .user { background:#25325a; align-self:flex-end; }
-    .assistant { background:#1a2347; border-left:3px solid #4ea1ff; }
-    .row { display:flex; gap:8px; margin-top:10px; }
-    input, button { padding:10px 12px; border-radius:10px; border:1px solid #33406b; background:#101630; color:#eaeef7; }
-    button { cursor:pointer; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .muted { color:#9fb3d6; font-size:12px; }
-    .typing { 
-      color: #9fb3d6;
-      font-style: italic;
-      padding: 8px 12px;
-    }
-    .typing::after {
-      content: '...';
-      animation: dots 1.5s steps(4, end) infinite;
-    }
-    @keyframes dots {
-      0%, 20% { content: ''; }
-      40% { content: '.'; }
-      60% { content: '..'; }
-      80% { content: '...'; }
-    }
-    .cursor {
-      border-right: 2px solid #4ea1ff;
-      animation: cursor-blink 0.8s infinite;
-    }
-    @keyframes cursor-blink {
-      0%, 100% { opacity: 0; }
-      50% { opacity: 1; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h2>Chat de Indicadores</h2>
-    <div class="muted">Consulta como: “Promedio de AHT en la campaña Tarjetas la última semana” o “¿Y en Lima cuántos hay?”</div>
-    <div id="chat" class="chat" style="display:flex; flex-direction:column;"></div>
-    <div class="row">
-      <input id="session" placeholder="session_id (ej. demo-123)" value="demo-123" />
-      <input id="message" placeholder="Escribe tu pregunta..." style="flex:1" />
-      <button id="send">Enviar</button>
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    {% load static %}
+    <meta charset="utf-8" />
+    <title>ANALIA · Chat de Indicadores</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #111832;
+        --muted: #94a3b8;
+        --text: #e6edf7;
+        --brand: #4ea1ff;
+        --accent: #22d3ee;
+        --danger: #ef4444;
+        --ok: #10b981;
+        --border: #2b355a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        border-right: 1px solid var(--border);
+        background: linear-gradient(180deg, #0e1530, #0c122a);
+      }
+      .side-head {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .logo img {
+        width: 120px;
+        height: 138px;
+        border-radius: 10px;
+        object-fit: cover;
+        box-shadow: 0 0 10px rgba(78, 161, 255, 0.5);
+      }
+      .title {
+        font-weight: 700;
+      }
+      .section {
+        padding: 12px;
+      }
+      .btn,
+      button,
+      input,
+      textarea,
+      select {
+        border: 1px solid var(--border);
+        background: #0e1530;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .btn {
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .btn:hover {
+        border-color: #3a4b80;
+      }
+      .btn-danger {
+        border-color: #51222a;
+        background: #1a0f11;
+      }
+      .btn-danger:hover {
+        border-color: #7a2b36;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #0c142b;
+        cursor: pointer;
+        margin: 4px 6px 0 0;
+        font-size: 12px;
+      }
+      .sessions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: calc(100vh - 190px);
+        overflow: auto;
+        padding-right: 6px;
+      }
+      .session {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #0c142b;
+        cursor: pointer;
+      }
+      .session.active {
+        outline: 2px solid var(--brand);
+      }
+      .session small {
+        color: var(--muted);
+      }
+      .session .row {
+        display: flex;
+        gap: 6px;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, #0e1530, #0d142c);
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--ok);
+        box-shadow: 0 0 8px var(--ok);
+      }
+      .content {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        min-height: calc(100vh - 57px);
+      }
+      .chat {
+        padding: 16px;
+        overflow: auto;
+      }
+      .bubble {
+        max-width: 860px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin: 10px 0;
+        white-space: pre-wrap;
+      }
+      .bubble.user {
+        background: #18244b;
+        margin-left: auto;
+      }
+      .bubble.assistant {
+        background: #121b3a;
+        border-left: 3px solid var(--brand);
+      }
+      .composer {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        padding: 12px 16px;
+        background: linear-gradient(180deg, #0d142c, #0b1226);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      textarea {
+        width: 100%;
+        min-height: 52px;
+        max-height: 200px;
+        resize: vertical;
+      }
+      .ghost {
+        opacity: 0.65;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="side-head">
+          <div class="logo">
+            <img
+              src="{% static 'images/analia_logo.png' %}"
+              alt="ANALIA SQL Assistant"
+              height="48"
+            />
+          </div>
+
+          <div>
+            <div class="title">ANALIA</div>
+            <small class="hint">SQL · RAG · Sesiones</small>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <input id="newSid" placeholder="Nuevo session_id" style="flex: 1" />
+            <button class="btn" id="btnNew">Crear</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="hint" style="margin-bottom: 6px">Sesiones</div>
+          <div id="sessions" class="sessions"></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div class="status">
+            <div class="dot"></div>
+            <span id="provider">—</span>
+            <span id="db">—</span>
+            <span id="srv-time" class="hint">—</span>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btnExport">Exportar chat</button>
+            <button class="btn" id="btnCurl">Copiar cURL</button>
+            <button class="btn btn-danger" id="btnClear">
+              Limpiar historial
+            </button>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="chat" id="chat"></div>
+
+          <div class="composer">
+            <div id="quick" class="row" style="flex-wrap: wrap">
+              <div
+                class="chip"
+                data-text="¿Cuántos agentes activos hay por campaña?"
+              >
+                Agentes por campaña
+              </div>
+              <div
+                class="chip"
+                data-text="Muestra el top 10 de agentes por productividad semanal"
+              >
+                Top 10 productividad
+              </div>
+              <div
+                class="chip"
+                data-text="Promedio de AHT por campaña en el último mes"
+              >
+                AHT por campaña
+              </div>
+              <div
+                class="chip"
+                data-text="¿Qué campañas tienen más bajas en los últimos 30 días?"
+              >
+                Bajas 30d
+              </div>
+            </div>
+            <div class="row">
+              <input
+                id="sid"
+                placeholder="session_id activo"
+                style="width: 260px"
+              />
+              <textarea
+                id="msg"
+                placeholder="Escribe tu consulta… (Ctrl/Cmd + Enter)"
+                autofocus
+              ></textarea>
+              <button class="btn" id="send">Enviar</button>
+            </div>
+            <div class="row">
+              <small class="hint"
+                >Usa el mismo <b>session_id</b> para mantener el
+                contexto.</small
+              >
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-  </div>
 
-  <script>
-    const chat = document.getElementById('chat');
-    const session = document.getElementById('session');
-    const input = document.getElementById('message');
-    const btn = document.getElementById('send');
+    <script>
+      const API = {
+        chat: "/api/chat/",
+        sessions: "/api/sessions/",
+        session: (sid) => `/api/sessions/${encodeURIComponent(sid)}/`,
+        health: "/api/health/",
+      };
 
-    function push(role, text, immediate = true) {
-      const el = document.createElement('div');
-      el.className = 'msg ' + (role === 'user' ? 'user' : 'assistant');
-      if (immediate) {
-        el.textContent = text;
-      }
-      chat.appendChild(el);
-      chat.scrollTop = chat.scrollHeight;
-      return el;
-    }
+      const chatEl = document.getElementById("chat");
+      const sidEl = document.getElementById("sid");
+      const msgEl = document.getElementById("msg");
+      const sessionsEl = document.getElementById("sessions");
+      const newSidEl = document.getElementById("newSid");
 
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
+      const btnNew = document.getElementById("btnNew");
+      const btnExport = document.getElementById("btnExport");
+      const btnCurl = document.getElementById("btnCurl");
+      const btnClear = document.getElementById("btnClear");
+      const providerEl = document.getElementById("provider");
+      const dbEl = document.getElementById("db");
+      const srvTimeEl = document.getElementById("srv-time");
 
-    async function simulateTyping(element, text) {
-      let currentText = '';
-      const words = text.split(' ');
-      
-      for (let i = 0; i < words.length; i++) {
-        currentText += (i > 0 ? ' ' : '') + words[i];
-        element.textContent = currentText + (i < words.length - 1 ? '|' : '');
-        element.classList.add('cursor');
-        
-        // Velocidad variable basada en la longitud de la palabra
-        const delay = Math.min(100, 30 + words[i].length * 5);
-        await sleep(delay);
-      }
-      
-      element.classList.remove('cursor');
-    }
-
-    btn.onclick = async () => {
-      const s = session.value.trim() || 'demo-123';
-      const q = input.value.trim();
-      if (!q) return;
-      
-      // Deshabilitar el botón y la entrada mientras procesa
-      btn.disabled = true;
-      input.disabled = true;
-      
-      push('user', q);
-      input.value = '';
-      
-      // Agregar indicador de "escribiendo..."
-      const typingIndicator = document.createElement('div');
-      typingIndicator.className = 'typing';
-      typingIndicator.textContent = 'Consultando base de datos';
-      chat.appendChild(typingIndicator);
-      chat.scrollTop = chat.scrollHeight;
-
-      try {
-        const resp = await fetch('/api/chat/', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-          body: JSON.stringify({ session_id: s, message: q })
+      function el(tag, attrs = {}, children = []) {
+        const e = document.createElement(tag);
+        Object.entries(attrs).forEach(([k, v]) => {
+          if (k === "class") e.className = v;
+          else if (k === "html") e.innerHTML = v;
+          else e.setAttribute(k, v);
         });
-        const data = await resp.json();
-        
-        // Remover el indicador de escritura
-        typingIndicator.remove();
-        
-        // Crear el elemento de respuesta vacío
-        const replyElement = push('assistant', '', false);
-        
-        // Simular la escritura de la respuesta
-        await simulateTyping(replyElement, data.reply || '(sin respuesta)');
-      } catch (error) {
-        typingIndicator.remove();
-        push('assistant', 'Lo siento, ocurrió un error al procesar tu pregunta.');
-      } finally {
-        // Rehabilitar el botón y la entrada
-        btn.disabled = false;
-        input.disabled = false;
-        input.focus();
+        children.forEach((c) => e.appendChild(c));
+        return e;
       }
-    };
+      function escapeHtml(str) {
+        return (str || "")
+          .toString()
+          .replace(
+            /[&<>"]/g,
+            (s) =>
+              ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[s])
+          );
+      }
+      function addBubble(role, text) {
+        chatEl.appendChild(
+          el("div", { class: `bubble ${role}`, html: escapeHtml(text) })
+        );
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+      function copy(text) {
+        navigator.clipboard.writeText(text);
+      }
 
-    // CSRF helper
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
+      async function refreshHealth() {
+        try {
+          const r = await fetch(API.health);
+          const h = await r.json();
+          providerEl.textContent = `Modelo: ${h.model_provider}`;
+          dbEl.textContent = `DB: ${h.db_engine.split(".").pop()}`;
+          srvTimeEl.textContent = new Date(h.server_time).toLocaleString();
+        } catch (_) {
+          providerEl.textContent = "Modelo: —";
+          dbEl.textContent = "DB: —";
         }
       }
-      return cookieValue;
-    }
-  </script>
-</body>
+
+      async function loadSessions() {
+        const r = await fetch(API.sessions);
+        const list = await r.json();
+        sessionsEl.innerHTML = "";
+        list.forEach((it) => {
+          const item = el("div", {
+            class: "session" + (sidEl.value === it.session_id ? " active" : ""),
+          });
+          const left = el("div", {}, [
+            el("div", {
+              html: `<b>${escapeHtml(it.user_label || it.session_id)}</b>`,
+            }),
+            el("small", {
+              html: `${(it.last_activity || it.created_at || "")
+                .replace("T", " ")
+                .slice(0, 19)}`,
+            }),
+          ]);
+          const del = el("button", { class: "btn btn-danger" }, [
+            document.createTextNode("×"),
+          ]);
+          del.title = "Eliminar sesión";
+          del.addEventListener("click", async (ev) => {
+            ev.stopPropagation();
+            if (!confirm("¿Eliminar sesión e historial?")) return;
+            await fetch(API.session(it.session_id), { method: "DELETE" });
+            if (sidEl.value === it.session_id) {
+              sidEl.value = "";
+              chatEl.innerHTML = "";
+            }
+            loadSessions();
+          });
+          const open = el("button", { class: "btn" }, [
+            document.createTextNode("Abrir"),
+          ]);
+          open.addEventListener("click", () => selectSession(it.session_id));
+          const row = el("div", { class: "row" }, [open, del]);
+          item.appendChild(left);
+          item.appendChild(row);
+          sessionsEl.appendChild(item);
+        });
+      }
+
+      async function selectSession(sid) {
+        sidEl.value = sid;
+        chatEl.innerHTML = "";
+        const r = await fetch(API.session(sid));
+        const msgs = await r.json();
+        msgs.forEach((m) => addBubble(m.role, m.content));
+        loadSessions();
+      }
+
+      btnNew.addEventListener("click", async () => {
+        const id = (newSidEl.value || "").trim();
+        if (!id) return alert("Escribe un session_id");
+        await fetch(API.sessions, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: id }),
+        });
+        newSidEl.value = "";
+        await loadSessions();
+        selectSession(id);
+      });
+
+      async function send() {
+        const sid = (sidEl.value || "").trim();
+        const text = (msgEl.value || "").trim();
+        if (!sid) return alert("Debes indicar un session_id");
+        if (!text) return;
+        addBubble("user", text);
+        msgEl.value = "";
+
+        const ghost = el("div", { class: "bubble assistant ghost" }, [
+          document.createTextNode("Pensando…"),
+        ]);
+        chatEl.appendChild(ghost);
+        chatEl.scrollTop = chatEl.scrollHeight;
+
+        try {
+          const r = await fetch(API.chat, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sid, message: text }),
+          });
+          const data = await r.json();
+          ghost.remove();
+          addBubble("assistant", data.reply || JSON.stringify(data));
+          loadSessions();
+        } catch (_) {
+          ghost.remove();
+          addBubble("assistant", "Error de red o del servidor.");
+        }
+      }
+
+      document.getElementById("send").addEventListener("click", send);
+      document.getElementById("msg").addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          send();
+        }
+      });
+      document.getElementById("quick").addEventListener("click", (e) => {
+        const t = e.target.closest(".chip");
+        if (!t) return;
+        document.getElementById("msg").value = t.dataset.text;
+        document.getElementById("msg").focus();
+      });
+      btnExport.addEventListener("click", async () => {
+        const sid = (sidEl.value || "").trim();
+        if (!sid) return alert("Selecciona una sesión");
+        const r = await fetch(API.session(sid));
+        const msgs = await r.json();
+        const blob = new Blob(
+          [JSON.stringify({ session_id: sid, messages: msgs }, null, 2)],
+          { type: "application/json" }
+        );
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `analia_${sid}.json`;
+        a.click();
+      });
+      btnCurl.addEventListener("click", () => {
+        const sid = (sidEl.value || "demo").trim();
+        const txt = (
+          document.getElementById("msg").value ||
+          "¿Promedio de AHT por campaña en el último mes?"
+        ).trim();
+        const curl = `curl -s -X POST ${location.origin}/api/chat/ -H 'Content-Type: application/json' -d '{\"session_id\":\"${sid}\",\"message\":\"${txt}\"}'`;
+        navigator.clipboard.writeText(curl);
+        alert("cURL copiado al portapapeles");
+      });
+      btnClear.addEventListener("click", async () => {
+        const sid = (sidEl.value || "").trim();
+        if (!sid) return alert("Selecciona una sesión");
+        if (!confirm("¿Eliminar toda la conversación de esta sesión?")) return;
+        await fetch(API.session(sid), { method: "DELETE" });
+        chatEl.innerHTML = "";
+        loadSessions();
+      });
+
+      refreshHealth();
+      loadSessions();
+    </script>
+  </body>
 </html>
