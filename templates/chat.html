@@ -1,0 +1,157 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Chat Indicadores</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background:#0b1020; color:#eaeef7; }
+    .container { max-width: 840px; margin: 0 auto; padding: 1rem; }
+    .chat { background:#121a33; border-radius:12px; padding:16px; min-height:60vh; }
+    .msg { padding:10px 12px; border-radius:10px; margin:8px 0; white-space:pre-wrap; }
+    .user { background:#25325a; align-self:flex-end; }
+    .assistant { background:#1a2347; border-left:3px solid #4ea1ff; }
+    .row { display:flex; gap:8px; margin-top:10px; }
+    input, button { padding:10px 12px; border-radius:10px; border:1px solid #33406b; background:#101630; color:#eaeef7; }
+    button { cursor:pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .muted { color:#9fb3d6; font-size:12px; }
+    .typing { 
+      color: #9fb3d6;
+      font-style: italic;
+      padding: 8px 12px;
+    }
+    .typing::after {
+      content: '...';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80% { content: '...'; }
+    }
+    .cursor {
+      border-right: 2px solid #4ea1ff;
+      animation: cursor-blink 0.8s infinite;
+    }
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Chat de Indicadores</h2>
+    <div class="muted">Consulta como: “Promedio de AHT en la campaña Tarjetas la última semana” o “¿Y en Lima cuántos hay?”</div>
+    <div id="chat" class="chat" style="display:flex; flex-direction:column;"></div>
+    <div class="row">
+      <input id="session" placeholder="session_id (ej. demo-123)" value="demo-123" />
+      <input id="message" placeholder="Escribe tu pregunta..." style="flex:1" />
+      <button id="send">Enviar</button>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const session = document.getElementById('session');
+    const input = document.getElementById('message');
+    const btn = document.getElementById('send');
+
+    function push(role, text, immediate = true) {
+      const el = document.createElement('div');
+      el.className = 'msg ' + (role === 'user' ? 'user' : 'assistant');
+      if (immediate) {
+        el.textContent = text;
+      }
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+      return el;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function simulateTyping(element, text) {
+      let currentText = '';
+      const words = text.split(' ');
+      
+      for (let i = 0; i < words.length; i++) {
+        currentText += (i > 0 ? ' ' : '') + words[i];
+        element.textContent = currentText + (i < words.length - 1 ? '|' : '');
+        element.classList.add('cursor');
+        
+        // Velocidad variable basada en la longitud de la palabra
+        const delay = Math.min(100, 30 + words[i].length * 5);
+        await sleep(delay);
+      }
+      
+      element.classList.remove('cursor');
+    }
+
+    btn.onclick = async () => {
+      const s = session.value.trim() || 'demo-123';
+      const q = input.value.trim();
+      if (!q) return;
+      
+      // Deshabilitar el botón y la entrada mientras procesa
+      btn.disabled = true;
+      input.disabled = true;
+      
+      push('user', q);
+      input.value = '';
+      
+      // Agregar indicador de "escribiendo..."
+      const typingIndicator = document.createElement('div');
+      typingIndicator.className = 'typing';
+      typingIndicator.textContent = 'Consultando base de datos';
+      chat.appendChild(typingIndicator);
+      chat.scrollTop = chat.scrollHeight;
+
+      try {
+        const resp = await fetch('/api/chat/', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+          body: JSON.stringify({ session_id: s, message: q })
+        });
+        const data = await resp.json();
+        
+        // Remover el indicador de escritura
+        typingIndicator.remove();
+        
+        // Crear el elemento de respuesta vacío
+        const replyElement = push('assistant', '', false);
+        
+        // Simular la escritura de la respuesta
+        await simulateTyping(replyElement, data.reply || '(sin respuesta)');
+      } catch (error) {
+        typingIndicator.remove();
+        push('assistant', 'Lo siento, ocurrió un error al procesar tu pregunta.');
+      } finally {
+        // Rehabilitar el botón y la entrada
+        btn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    };
+
+    // CSRF helper
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+  </script>
+</body>
+</html>
