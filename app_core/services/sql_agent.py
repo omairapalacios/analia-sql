@@ -15,26 +15,17 @@ from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 
-# ---------- LLM providers ----------
-PROVIDER = os.getenv("MODEL_PROVIDER", "vertexai").lower()
+# ---------- Vertex AI LLM provider ----------
+from langchain_google_vertexai import ChatVertexAI
 
 def _init_llm():
-    if PROVIDER == "vertexai":
-        # pip install langchain-google-vertexai google-cloud-aiplatform
-        from langchain_google_vertexai import ChatVertexAI
-        return ChatVertexAI(
-            model=os.getenv("VERTEX_MODEL_NAME", "gemini-1.5-pro"),
-            project=os.getenv("VERTEX_PROJECT_ID"),
-            location=os.getenv("VERTEX_LOCATION", "us-central1"),
-            temperature=0.2,
-            max_output_tokens=1024,
-        )
-    elif PROVIDER == "openai":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
-    else:
-        from langchain.chat_models.fake import FakeListChatModel
-        return FakeListChatModel(responses=["(DEV) No LLM configured."])
+    return ChatVertexAI(
+        model=os.getenv("VERTEX_MODEL_NAME", "gemini-pro"),
+        project=os.getenv("VERTEX_PROJECT_ID"),
+        location=os.getenv("VERTEX_LOCATION", "us-central1"),
+        temperature=0.2,
+        max_output_tokens=1024,
+    )
 
 
 # ---------- DB helpers (usa la MISMA DB que Django) ----------
@@ -54,7 +45,14 @@ def _alchemy_url_from_django() -> str:
         host = cfg.get("HOST", "127.0.0.1")
         port = cfg.get("PORT", "5432")
         name = cfg.get("NAME")
-        return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{name}"
+    
+        # Si el host comienza con /cloudsql/, es una instancia de Cloud SQL
+        if host.startswith('/cloudsql/'):
+            # Usar el socket Unix para Cloud SQL
+            return f"postgresql+psycopg2://{user}:{pwd}@/{name}?host={host}"
+        else:
+            # Usar TCP para conexiones normales
+            return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{name}"
     else:
         raise RuntimeError(f"Motor no soportado por el agente: {engine}")
 
@@ -163,8 +161,25 @@ def ask_sql_agent(session_id: str, user_query: str) -> str:
             "No se pudo conectar a la base de datos durante la inicialización del agente. "
             "Revisa servicio, credenciales y que la DB exista."
         ) from e
-
+    except Exception as e:
+        print(f"Error al invocar Vertex AI: {str(e)}")
+        if "Model not found" in str(e):
+            raise RuntimeError(
+                "Error de configuración: El modelo de Vertex AI especificado no existe. "
+                "Verifica el nombre del modelo y que esté disponible en tu región."
+            ) from e
+        elif "Permission denied" in str(e):
+            raise RuntimeError(
+                "Error de permisos: La cuenta de servicio no tiene los permisos necesarios "
+                "para acceder a Vertex AI."
+            ) from e
+        else:
+            raise RuntimeError(
+                f"Error al procesar la consulta con Vertex AI: {str(e)}"
+            ) from e
+    print(f'RESULTADO DEL MODELO: {result}')
     answer = result["output"] if isinstance(result, dict) and "output" in result else str(result)
+    print(f'RESPUESTA: {answer}')
 
     # Guard extra por si el modelo devolviera SQL bruto en el texto
     if re.search(r"\b(insert|update|delete|drop|alter)\b", answer.lower()):

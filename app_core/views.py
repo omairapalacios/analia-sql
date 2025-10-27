@@ -36,13 +36,33 @@ class ChatAPIView(APIView):
         # Guardar mensaje de usuario
         ChatMessage.objects.create(session=sess, role='user', content=message, created_at=timezone.now())
 
-        # Consultar agente
-        reply = ask_sql_agent(session_id=session_id, user_query=message)
+        try:
+            # Consultar agente
+            reply = ask_sql_agent(session_id=session_id, user_query=message)
 
-        # Guardar respuesta
-        ChatMessage.objects.create(session=sess, role='assistant', content=reply, created_at=timezone.now())
+            # Guardar respuesta
+            ChatMessage.objects.create(session=sess, role='assistant', content=reply, created_at=timezone.now())
 
-        return Response(ChatResponseSerializer({"reply": reply}).data, status=status.HTTP_200_OK)
+            return Response(ChatResponseSerializer({"reply": reply}).data, status=status.HTTP_200_OK)
+        except RuntimeError as e:
+            error_message = str(e)
+            # Guardar el error como respuesta del asistente para mantener el histórico
+            ChatMessage.objects.create(
+                session=sess, 
+                role='assistant', 
+                content=f"Error: {error_message}", 
+                created_at=timezone.now()
+            )
+            return Response(
+                {"error": error_message}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            print(f"Error inesperado: {str(e)}")
+            return Response(
+                {"error": "Error interno del servidor"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 def chat_page(request):
     # Render de la UI simple
