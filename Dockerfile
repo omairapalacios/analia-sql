@@ -22,8 +22,13 @@ COPY . /app
 # Normaliza CRLF y da permisos
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
-# Crea usuario y DA PROPIEDAD de /app
-RUN useradd -m appuser && mkdir -p /app/staticfiles && chown -R appuser:appuser /app
+# Preparar staticfiles y ejecutar collectstatic (como root) para que los
+# assets estén disponibles dentro de la imagen. Luego ajustamos permisos.
+RUN mkdir -p /app/staticfiles \
+ && python manage.py collectstatic --noinput || true
+
+# Crea usuario y da propiedad de /app al usuario no privilegiado
+RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8080

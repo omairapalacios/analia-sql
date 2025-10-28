@@ -28,6 +28,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -103,3 +104,5 @@ STATIC_ROOT = Path(env("STATIC_ROOT", default=str(BASE_DIR / "staticfiles")))
 STATICFILES_DIRS = [BASE_DIR / "app_core" / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# Static files: use WhiteNoise to serve static assets in production
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
