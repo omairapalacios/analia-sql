@@ -11,6 +11,18 @@ class Command(BaseCommand):
             ('A001','Ana Ramos','Lima','Tarjetas','Lima'),
             ('A002','Luis Pérez','Arequipa','Préstamos','Sur'),
             ('A003','Sara Díaz','Lima','Seguros','Lima'),
+            ('A004','Carlos Gómez','Trujillo','Tarjetas','Norte'),
+            ('A005','Marta Ruiz','Cusco','Préstamos','Sur'),    
+            ('A006','Jorge Fernández','Lima','Seguros','Lima'),
+            ('A007','Lucía Morales','Chiclayo','Tarjetas','Norte'),
+            ('A008','Pedro Sánchez','Piura','Préstamos','Norte'),
+            ('A009','Elena Torres','Lima','Seguros','Lima'),
+            ('A010','Miguel Castro','Arequipa','Tarjetas','Sur'),
+            ('A011','Sofía Vargas','Lima','Préstamos','Lima'),
+            ('A012','Diego Herrera','Trujillo','Seguros','Norte'),
+            ('A013','Laura Jiménez','Lima','Tarjetas','Lima'),
+            ('A014','Andrés Molina','Cusco','Préstamos','Sur'),
+            ('A015','Natalia Ortiz','Chiclayo','Seguros','Norte'),
         ]
         Agent.objects.all().delete()
         Indicator.objects.all().delete()

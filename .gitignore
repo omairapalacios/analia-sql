@@ -3,8 +3,8 @@ venv/
 venv
 /venv
 .env
-.env.backup
-.env.new
+.env.backup.OLD
+.env.new.OLD
 # Archivos de configuración local
 *.pyc
 __pycache__/
@@ -22,8 +22,11 @@ Thumbs.db
 # Archivos estáticos y media (si se generan)
 staticfiles/
 media/
-
-.env
-.env.prod
-
+setup_cloudsql_cloudrun.sh
 *.sh
+
+.dockerfile
+
+scripts
+
+*.env.prod
