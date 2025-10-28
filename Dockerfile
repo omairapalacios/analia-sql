@@ -1,9 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
-# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc libpq-dev \
+    build-essential gcc libpq-dev curl sed \
  && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -14,20 +13,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# 1) Instalar dependencias primero (mejor cache)
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 
-# 2) Copiar código
+# Copia código (incluye entrypoint.sh)
 COPY . /app
 
-# 3) Crear usuario no-root
-RUN useradd -m appuser
+# Normaliza CRLF y da permisos
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Crea usuario y DA PROPIEDAD de /app
+RUN useradd -m appuser && mkdir -p /app/staticfiles && chown -R appuser:appuser /app
 USER appuser
 
-# 4) Entrypoint
-COPY --chown=appuser:appuser entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
+
 CMD ["/app/entrypoint.sh"]

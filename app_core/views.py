@@ -131,6 +131,3 @@ class SessionDetailAPIView(APIView):
     def delete(self, request, session_id):
         ChatSession.objects.filter(session_id=session_id).delete()
         return Response(status=204)
-
-
-# (Tu chat_page actual puede quedarse igual)

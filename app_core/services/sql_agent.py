@@ -1,7 +1,9 @@
 import os
 import re
+import logging
 from pathlib import Path
 from typing import List, Dict
+from urllib.parse import quote_plus
 
 from django.conf import settings
 
@@ -45,14 +47,31 @@ def _alchemy_url_from_django() -> str:
         host = cfg.get("HOST", "127.0.0.1")
         port = cfg.get("PORT", "5432")
         name = cfg.get("NAME")
+
+        # Loguear si faltan credenciales (solo booleanos, no valores)
+        if not user or not pwd:
+            logging.warning("DB user or password appears empty in settings.DATABASES['default'] (user_present=%s, pwd_present=%s)", bool(user), bool(pwd))
+
+        # URL-encode credentials to safely include special characters
+        user_enc = quote_plus(user)
+        pwd_enc = quote_plus(pwd)
     
         # Si el host comienza con /cloudsql/, es una instancia de Cloud SQL
+        # Usamos las credenciales URL-encoded (user_enc/pwd_enc) para evitar
+        # problemas cuando la contraseña contiene caracteres especiales.
         if host.startswith('/cloudsql/'):
             # Usar el socket Unix para Cloud SQL
-            return f"postgresql+psycopg2://{user}:{pwd}@/{name}?host={host}"
+            url = f"postgresql+psycopg2://{user_enc}:{pwd_enc}@/{name}?host={host}"
         else:
             # Usar TCP para conexiones normales
-            return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{name}"
+            url = f"postgresql+psycopg2://{user_enc}:{pwd_enc}@{host}:{port}/{name}"
+
+        # Log parcial (sin exponer contraseña) para depuración
+        try:
+            logging.info("Construyendo SQLAlchemy URL para DB host=%s name=%s user_present=%s", host, name, bool(user))
+        except Exception:
+            pass
+        return url
     else:
         raise RuntimeError(f"Motor no soportado por el agente: {engine}")
 

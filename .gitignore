@@ -28,3 +28,5 @@ setup_cloudsql_cloudrun.sh
 .dockerfile
 
 scripts
+
+*.env.prod
