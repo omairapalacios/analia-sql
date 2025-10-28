@@ -23,10 +23,10 @@ Thumbs.db
 staticfiles/
 media/
 setup_cloudsql_cloudrun.sh
-#*.sh
+*.sh
 
 .dockerfile
 
 scripts
 
-#*.env.prod
+*.env.prod
