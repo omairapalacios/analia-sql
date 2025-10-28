@@ -22,3 +22,8 @@ Thumbs.db
 # Archivos estáticos y media (si se generan)
 staticfiles/
 media/
+
+.env
+.env.prod
+
+*.sh
